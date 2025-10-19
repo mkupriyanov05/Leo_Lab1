@@ -1,0 +1,310 @@
+
+Lab_1.elf:     file format elf32-littlearm
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .isr_vector   00000130  08000000  08000000  00010000  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  1 .text         00000114  08000130  08000130  00010130  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .rodata       00000000  08000244  0800024c  0001024c  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  3 .ARM.extab    00000000  08000244  08000244  0001024c  2**0
+                  CONTENTS
+  4 .ARM          00000000  08000244  08000244  0001024c  2**0
+                  CONTENTS
+  5 .preinit_array 00000000  08000244  0800024c  0001024c  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  6 .init_array   00000004  08000244  08000244  00010244  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  7 .fini_array   00000004  08000248  08000248  00010248  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  8 .data         00000000  20000000  20000000  0001024c  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  9 .bss          0000001c  20000000  0800024c  00020000  2**2
+                  ALLOC
+ 10 ._user_heap_stack 00000604  2000001c  0800024c  0002001c  2**0
+                  ALLOC
+ 11 .ARM.attributes 00000029  00000000  00000000  0001024c  2**0
+                  CONTENTS, READONLY
+ 12 .debug_line   000000a8  00000000  00000000  00010275  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 13 .debug_info   00000022  00000000  00000000  0001031d  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 14 .debug_abbrev 00000012  00000000  00000000  0001033f  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 15 .debug_aranges 00000028  00000000  00000000  00010358  2**3
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 16 .debug_str    00000057  00000000  00000000  00010380  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 17 .debug_ranges 00000020  00000000  00000000  000103d8  2**3
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+
+Disassembly of section .text:
+
+08000130 <__do_global_dtors_aux>:
+ 8000130:	b510      	push	{r4, lr}
+ 8000132:	4c05      	ldr	r4, [pc, #20]	; (8000148 <__do_global_dtors_aux+0x18>)
+ 8000134:	7823      	ldrb	r3, [r4, #0]
+ 8000136:	b933      	cbnz	r3, 8000146 <__do_global_dtors_aux+0x16>
+ 8000138:	4b04      	ldr	r3, [pc, #16]	; (800014c <__do_global_dtors_aux+0x1c>)
+ 800013a:	b113      	cbz	r3, 8000142 <__do_global_dtors_aux+0x12>
+ 800013c:	4804      	ldr	r0, [pc, #16]	; (8000150 <__do_global_dtors_aux+0x20>)
+ 800013e:	f3af 8000 	nop.w
+ 8000142:	2301      	movs	r3, #1
+ 8000144:	7023      	strb	r3, [r4, #0]
+ 8000146:	bd10      	pop	{r4, pc}
+ 8000148:	20000000 	.word	0x20000000
+ 800014c:	00000000 	.word	0x00000000
+ 8000150:	0800022c 	.word	0x0800022c
+
+08000154 <frame_dummy>:
+ 8000154:	b508      	push	{r3, lr}
+ 8000156:	4b03      	ldr	r3, [pc, #12]	; (8000164 <frame_dummy+0x10>)
+ 8000158:	b11b      	cbz	r3, 8000162 <frame_dummy+0xe>
+ 800015a:	4903      	ldr	r1, [pc, #12]	; (8000168 <frame_dummy+0x14>)
+ 800015c:	4803      	ldr	r0, [pc, #12]	; (800016c <frame_dummy+0x18>)
+ 800015e:	f3af 8000 	nop.w
+ 8000162:	bd08      	pop	{r3, pc}
+ 8000164:	00000000 	.word	0x00000000
+ 8000168:	20000004 	.word	0x20000004
+ 800016c:	0800022c 	.word	0x0800022c
+
+08000170 <Reset_Handler>:
+
+  .section .text.Reset_Handler
+  .weak Reset_Handler
+  .type Reset_Handler, %function
+Reset_Handler:
+	ldr		r0, =_estack
+ 8000170:	4826      	ldr	r0, [pc, #152]	; (800020c <delay_loop+0xc>)
+	mov		sp, r0          /* set stack pointer */
+ 8000172:	4685      	mov	sp, r0
+
+
+// порт A
+
+	ldr		r0, =PERIPH_BB_BASE+ \
+ 8000174:	4826      	ldr	r0, [pc, #152]	; (8000210 <delay_loop+0x10>)
+				(RCC_APB2ENR-PERIPH_BASE)*32 + \
+				4*4
+
+	mov		r1, #1						// включаем тактирование порта C (во 2-й бит RCC_APB2ENR пишем '1`)
+ 8000176:	f04f 0101 	mov.w	r1, #1
+	str 	r1, [r0]					// загружаем это значение
+ 800017a:	6001      	str	r1, [r0, #0]
+
+	ldr		r0, =GPIOC_CRL				// адрес порта
+ 800017c:	4825      	ldr	r0, [pc, #148]	; (8000214 <delay_loop+0x14>)
+	ldr		r1, =0x03333333					// 4-битная маска настроек для Output mode 50mHz, Push-Pull ("0011")
+ 800017e:	4926      	ldr	r1, [pc, #152]	; (8000218 <delay_loop+0x18>)
+	ldr		r2, [r0]					// считать порт
+ 8000180:	6802      	ldr	r2, [r0, #0]
+    bfi		r2, r1, #0, #28    			// скопировать биты маски в позицию PIN1
+ 8000182:	f361 021b 	bfi	r2, r1, #0, #28
+
+
+    str		r2, [r0]					// загрузить результат в регистр настройки порта
+ 8000186:	6002      	str	r2, [r0, #0]
+
+08000188 <loop>:
+
+//    ldr		r0, =GPIOC_BSRR				// адрес порта выходных сигналов
+
+loop:
+
+	mov r2, #1
+ 8000188:	f04f 0201 	mov.w	r2, #1
+	bl switch_digit
+ 800018c:	f000 f809 	bl	80001a2 <switch_digit>
+
+	bl delay
+ 8000190:	f000 f834 	bl	80001fc <delay>
+
+	mov r2, #2
+ 8000194:	f04f 0202 	mov.w	r2, #2
+	bl switch_digit
+ 8000198:	f000 f803 	bl	80001a2 <switch_digit>
+
+	bl delay
+ 800019c:	f000 f82e 	bl	80001fc <delay>
+
+
+	b loop
+ 80001a0:	e7f2      	b.n	8000188 <loop>
+
+080001a2 <switch_digit>:
+
+
+switch_digit:
+
+	PUSH {r4}
+ 80001a2:	b410      	push	{r4}
+	ldr r1, =jump_table
+ 80001a4:	491d      	ldr	r1, [pc, #116]	; (800021c <delay_loop+0x1c>)
+	tbb [r1, r2]
+ 80001a6:	e8d1 f002 	tbb	[r1, r2]
+	B end_switch
+ 80001aa:	e025      	b.n	80001f8 <end_switch>
+
+080001ac <jump_table>:
+ 80001ac:	0e0b0805 	.word	0x0e0b0805
+ 80001b0:	1a171411 	.word	0x1a171411
+ 80001b4:	201d      	.short	0x201d
+
+080001b6 <case_0>:
+    .byte (case_7 - jump_table)/2
+    .byte (case_8 - jump_table)/2
+    .byte (case_9 - jump_table)/2
+
+case_0:
+    LDR r4, =0x3F           // segments for "0"
+ 80001b6:	f04f 043f 	mov.w	r4, #63	; 0x3f
+    B set_segments
+ 80001ba:	e01a      	b.n	80001f2 <set_segments>
+
+080001bc <case_1>:
+case_1:
+    LDR r4, =0x06           // "1"
+ 80001bc:	f04f 0406 	mov.w	r4, #6
+    B set_segments
+ 80001c0:	e017      	b.n	80001f2 <set_segments>
+
+080001c2 <case_2>:
+case_2:
+    LDR r4, =0x5B           // "2"
+ 80001c2:	f04f 045b 	mov.w	r4, #91	; 0x5b
+    B set_segments
+ 80001c6:	e014      	b.n	80001f2 <set_segments>
+
+080001c8 <case_3>:
+case_3:
+    LDR r4, =0x4F           // "3"
+ 80001c8:	f04f 044f 	mov.w	r4, #79	; 0x4f
+    B set_segments
+ 80001cc:	e011      	b.n	80001f2 <set_segments>
+
+080001ce <case_4>:
+case_4:
+    LDR r4, =0x66           // "4"
+ 80001ce:	f04f 0466 	mov.w	r4, #102	; 0x66
+    B set_segments
+ 80001d2:	e00e      	b.n	80001f2 <set_segments>
+
+080001d4 <case_5>:
+case_5:
+    LDR r4, =0x6D           // "5"
+ 80001d4:	f04f 046d 	mov.w	r4, #109	; 0x6d
+    B set_segments
+ 80001d8:	e00b      	b.n	80001f2 <set_segments>
+
+080001da <case_6>:
+case_6:
+    LDR r4, =0x7D           // "6"
+ 80001da:	f04f 047d 	mov.w	r4, #125	; 0x7d
+    B set_segments
+ 80001de:	e008      	b.n	80001f2 <set_segments>
+
+080001e0 <case_7>:
+case_7:
+    LDR r4, =0x07           // "7"
+ 80001e0:	f04f 0407 	mov.w	r4, #7
+    B set_segments
+ 80001e4:	e005      	b.n	80001f2 <set_segments>
+
+080001e6 <case_8>:
+case_8:
+    LDR r4, =0x7F           // "8"
+ 80001e6:	f04f 047f 	mov.w	r4, #127	; 0x7f
+    B set_segments
+ 80001ea:	e002      	b.n	80001f2 <set_segments>
+
+080001ec <case_9>:
+case_9:
+    LDR r4, =0x6F           // "9"
+ 80001ec:	f04f 046f 	mov.w	r4, #111	; 0x6f
+    B set_segments
+ 80001f0:	e7ff      	b.n	80001f2 <set_segments>
+
+080001f2 <set_segments>:
+
+set_segments:
+    LDR r3, =GPIOC_ODR       @ пример — выход на порт B
+ 80001f2:	4b0b      	ldr	r3, [pc, #44]	; (8000220 <delay_loop+0x20>)
+    STR r4, [r3]
+ 80001f4:	601c      	str	r4, [r3, #0]
+    B end_switch
+ 80001f6:	e7ff      	b.n	80001f8 <end_switch>
+
+080001f8 <end_switch>:
+
+end_switch:
+    POP {r4, pc}
+ 80001f8:	bd10      	pop	{r4, pc}
+    bx lr
+ 80001fa:	4770      	bx	lr
+
+080001fc <delay>:
+
+
+
+
+delay:									@ Подпрограмма задержки
+	push	{r0}						@ Загружаем в стек R0, т.к. его значение будем менять
+ 80001fc:	b401      	push	{r0}
+	ldr		r0, =0xFFFFF					@ псевдоинструкция Thumb (загрузить константу в регистр)
+ 80001fe:	4809      	ldr	r0, [pc, #36]	; (8000224 <delay_loop+0x24>)
+
+08000200 <delay_loop>:
+delay_loop:
+	subs	r0, #1						@ SUB с установкой флагов результата
+ 8000200:	3801      	subs	r0, #1
+	it 		NE
+ 8000202:	bf18      	it	ne
+	bne		delay_loop					@ переход, если Z==0 (результат вычитания не равен нулю)
+ 8000204:	e7fc      	bne.n	8000200 <delay_loop>
+	pop		{r0}						@ Выгружаем из стека R0
+ 8000206:	bc01      	pop	{r0}
+	bx		lr							@ выход из подпрограммы (переход к адресу в регистре LR - вершина стека)
+ 8000208:	4770      	bx	lr
+ 800020a:	0000      	.short	0x0000
+	ldr		r0, =_estack
+ 800020c:	20005000 	.word	0x20005000
+	ldr		r0, =PERIPH_BB_BASE+ \
+ 8000210:	42420310 	.word	0x42420310
+	ldr		r0, =GPIOC_CRL				// адрес порта
+ 8000214:	40011000 	.word	0x40011000
+	ldr		r1, =0x03333333					// 4-битная маска настроек для Output mode 50mHz, Push-Pull ("0011")
+ 8000218:	03333333 	.word	0x03333333
+	ldr r1, =jump_table
+ 800021c:	080001ac 	.word	0x080001ac
+    LDR r3, =GPIOC_ODR       @ пример — выход на порт B
+ 8000220:	4001100c 	.word	0x4001100c
+	ldr		r0, =0xFFFFF					@ псевдоинструкция Thumb (загрузить константу в регистр)
+ 8000224:	000fffff 	.word	0x000fffff
+
+08000228 <ADC1_2_IRQHandler>:
+ * @retval : None
+*/
+  .section .text.Default_Handler,"ax",%progbits
+Default_Handler:
+Infinite_Loop:
+  b Infinite_Loop
+ 8000228:	e7fe      	b.n	8000228 <ADC1_2_IRQHandler>
+	...
+
+0800022c <_init>:
+ 800022c:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 800022e:	bf00      	nop
+ 8000230:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 8000232:	bc08      	pop	{r3}
+ 8000234:	469e      	mov	lr, r3
+ 8000236:	4770      	bx	lr
+
+08000238 <_fini>:
+ 8000238:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 800023a:	bf00      	nop
+ 800023c:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 800023e:	bc08      	pop	{r3}
+ 8000240:	469e      	mov	lr, r3
+ 8000242:	4770      	bx	lr
