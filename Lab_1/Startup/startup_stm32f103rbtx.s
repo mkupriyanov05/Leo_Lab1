@@ -56,53 +56,52 @@ defined in linker script */
   .section .text.Reset_Handler
   .weak Reset_Handler
   .type Reset_Handler, %function
+
+
+// требуется регистров: 3
+// регистры: r0, r1, r2
 Reset_Handler:
 	ldr		r0, =_estack
 	mov		sp, r0          /* set stack pointer */
 
 
-// порт A
+// инициализация порта С
 
 	ldr		r0, =PERIPH_BB_BASE+ \
 				(RCC_APB2ENR-PERIPH_BASE)*32 + \
-				4*4
+				4*4						// запись адреса 4-го бита (для порта С) разрешения тактирования (bitbanding)
+	mov		r1, #1						// запись "1" в регистр r1 для загрузки в r0
+	str 	r1, [r0]					// загрузка значения из r1 в r0 для разрешения тактирования
 
-	mov		r1, #1						// включаем тактирование порта C (во 2-й бит RCC_APB2ENR пишем '1`)
-	str 	r1, [r0]					// загружаем это значение
-
-	ldr		r0, =GPIOC_CRL				// адрес порта
-	ldr		r2, =0x43333333					// 4-битная маска настроек для Output mode 50mHz, Push-Pull ("0011") 0100
-    str		r2, [r0]
+	ldr		r0, =GPIOC_CRL				// запись адреса нижнего конфиг регистра порта С в r0
+	ldr		r1, =0x43333333				// запись маски в r1: для PC0-PC6 - 00 11 (output 50MHz, general push-pull), для PC7 - 01 00 (input, analog)
+    str		r1, [r0]					// загрузка значения из r1 в r0 для настройки конфига
 
 
-    ldr		r0, =GPIOC_CRH				// адрес порта
-	ldr		r1, =0x04					// 4-битная маска настроек для Output mode 50mHz, Push-Pull (") 0100
-	ldr		r2, [r0]					// считать порт			   			// скопировать биты маски в позицию PIN1
-    bfi		r2, r1, #0, #4
-    str		r2, [r0]					// загрузить результат в регистр настройки порта
-    mov		r0, #0
+    ldr		r0, =GPIOC_CRH				// запись адреса верхнего конфиг регистра порта С в r0
+	ldr		r1, =0x04					// запись маски в r1: для PC8 - 01 00 (input, analog)
+	ldr		r2, [r0]					// считывание порта	в r2, потому что мы записываем только часть регистра и нам нужно сохранить значения, которые изначально были в конфиг регистре
+    bfi		r2, r1, #0, #4				// копирование битов маски в позицию PIN8
+    str		r2, [r0]					// загрузка результата в конфиг регистр порта
 
-//    ldr		r0, =GPIOC_BSRR				// адрес порта выходных сигналов
+    mov		r0, #0						// обнуление регистра r0 (тест)
 
 loop:
 
-	bl get_encoder_data
-	bl data_cmp
-	bl switch_digit
-
-
-
-
-
+	bl get_encoder_data					// получение данных от энкодера
+	bl data_cmp							// вычисление стороны поворота энкодера
+	bl switch_digit						// вывод данных на семисегментник
 
 	b loop
 
 
+// требуется регистров: 3
+// регистры: r9 (двоичный код сегментов для PC0-PC6), (было r4)
+//			 r7 (полученная цифра от энкодера), (было r2)
+//			 r1
 switch_digit:
 
-	PUSH {r4}
-//	ldr r1, =jump_table
-	tbb [PC, r2]
+	tbb [PC, r7]			// поиск по таблице jump_table значения r7
 
 jump_table:
     .byte (case_0 - jump_table)/2
@@ -117,130 +116,142 @@ jump_table:
     .byte (case_9 - jump_table)/2
 
 case_0:
-    LDR r4, =0x3F           // segments for "0"
-    B set_segments
+    ldr r9, =0x3F           // значения сегментов для "0"
+    b set_segments
 case_1:
-    LDR r4, =0x06           // "1"
-    B set_segments
+    ldr r9, =0x06           // "1"
+    b set_segments
 case_2:
-    LDR r4, =0x5B           // "2"
-    B set_segments
+    ldr r9, =0x5B           // "2"
+    b set_segments
 case_3:
-    LDR r4, =0x4F           // "3"
-    B set_segments
+    ldr r9, =0x4F           // "3"
+    b set_segments
 case_4:
-    LDR r4, =0x66           // "4"
-    B set_segments
+    ldr r9, =0x66           // "4"
+    b set_segments
 case_5:
-    LDR r4, =0x6D           // "5"
-    B set_segments
+    ldr r9, =0x6D           // "5"
+    b set_segments
 case_6:
-    LDR r4, =0x7D           // "6"
-    B set_segments
+    ldr r9, =0x7D           // "6"
+    b set_segments
 case_7:
-    LDR r4, =0x07           // "7"
-    B set_segments
+    ldr r9, =0x07           // "7"
+    b set_segments
 case_8:
-    LDR r4, =0x7F           // "8"
-    B set_segments
+    ldr r9, =0x7F           // "8"
+    b set_segments
 case_9:
-    LDR r4, =0x6F           // "9"
-    B set_segments
+    ldr r9, =0x6F           // "9"
+    b set_segments
 
 set_segments:
-    LDR r3, =GPIOC_ODR       @ пример — выход на порт B
-    STR r4, [r3]
-    POP {r4}
+    ldr r1, =GPIOC_ODR      // получение адреса регистра вывода
+    str r7, [r1]			// запись значений сегментов в регистр вывода
     bx lr
 
 
-
+// требуется регистров: 3
+// регистры: r0 (значения на энкодере: 0-ой б - тек dt, 1-ый б - предыд dt, 8-ой б - тек clk, 9-ый б - предыд clk),
+//			 r1, r2 (было r5, r6)
+// dt - PC7, clk - PC8
 get_encoder_data:
 
-	lsl		r0, r0, #1
+	lsl		r0, r0, #1			// cдвиг регистра r0 на 1 бит влево для обновления предыд значений
 
-	ldr		r5, =PERIPH_BB_BASE+ \
+	ldr		r1, =PERIPH_BB_BASE+ \
 				(GPIOC_IDR-PERIPH_BASE)*32 + \
-				7*4		@ вычисляем адрес для BitBanding 13-го бита регистра GPIOC_IDR dt yellow
-	ldr		r6, [r5]			// значение PC7
-	bfi		r0, r6, #0, #1
+				7*4				// запись адреса 7-го бита регистра (текущее значение dt) входных данных (bitbanding)
+	ldr		r2, [r1]			// получение значения PC7 в регистр r2
+	bfi		r0, r2, #0, #1		// копирование текущего значения PC7 в r0 (можно было использовать просто маску (лог И с "1"), но так понятнее
 
 
-
-	ldr		r5, =PERIPH_BB_BASE+ \
+	ldr		r1, =PERIPH_BB_BASE+ \
 				(GPIOC_IDR-PERIPH_BASE)*32 + \
-				8*4		@ вычисляем адрес для BitBanding 13-го бита регистра GPIOC_IDR clock blue
-	ldr		r6, [r5]			// значение PC8
-	bfi		r0, r6, #8, #1
+				8*4				// запись адреса 8-го бита регистра (текущее значение clk) входных данных (bitbanding)
+	ldr		r2, [r1]			// получение значения PC8 в регистр r2
+	bfi		r0, r2, #8, #1		// копирование текущего значения PC8 в r0
 
 	bx lr
 
 
+// требуется регистров: 5
+// регистры: r0 (значения на энкодере: 0-ой б - тек dt, 1-ый б - предыд dt, 8-ой б - тек clk, 9-ый б - предыд clk),
+// 			 r3 (временная копия r0)
+//			 r4, r5, r6 (значения энкодера для сравнения между собой: r4 - предыд dt, r5 - тек dt, r6 - тек clk)
 data_cmp:
 
+	mov		r3, r0				// создание копии значений из r0 в r3
+	and		r5, r3, #1			// запись в r5 текущего значения dt
+	lsr		r3, #1				// сдвиг вправо на 1 бит для получения предыд значения dt
+	and		r4, r3, #1			// запись в r4 предыд значения dt
+/*
+	mov		r1, #0				// установка helper-регистра для записи кода выполнения условий в "0"
 
-	mov		r6, r0
-	and		r8, r6, #1
-	lsr		r6, #1
-	and		r7, r6, #1
 
-	mov		r9, #0
+	cmp		r4, r5				// сравнение предыд (r4) и тек (r5) значений dt
+	ite		ls					// условие: если "r4 <= r5"
+	movls	r1, #1				// то "установка helper-регистра в 1"
+	bhi		dt_high_to_low		// иначе (r4 > r5) "dt сменился с 1 на 0"
 
-	cmp		r7, r8				//сравниваем предыдущее и нынешнее dt
-	ite		ls
-	movls	r9, #1
-	bhi		dt_high_to_low
+	cmp		r4, r5				// сравнение предыд (r4) и тек (r5) значений dt
+	ite		cs					// условие: если "r4 >= r5"
+	movcs	r1, #2				// то "установка helper-регистра в 2"
+	bcc		dt_low_to_high		// иначе (r4 < r5) "dt сменился с 0 на 1"
+*/
 
-	cmp		r7, r8
-	ite		cs
-	movcs	r9, #2
-	bcc		dt_low_to_high
+	cmp		r4, r5				// сравнение предыд (r4) и тек (r5) значений dt
+	it		ne					// условие: если "r4 != r5"
+	bne		dt_changed			// то "значение dt изменилось - переход к подпрогр"
 
-	cmp		r9, #2
-	it		eq
-	moveq	r10, #2
 
 	bx lr
 
+
+dt_changed:
+
+	mov		r3, r0				// создание копии значений из r0 в r3
+	lsr		r3, #8				// сдвиг вправо на 8 бит для получения тек значения clk
+	and		r6, r3, #1			// запись в r5 текущего значения clk
+
+	cmp		r5, r6				// сравнение тек dt (r5) и тек clk (r6) значений
+	ite		eq					// условие если "r4 = r5"
+	moveq	r7, #1				// code_right = 1
+	movne	r7, #2				// code_left = 2
+
+	bx lr
+
+
+/*
 dt_high_to_low:
 
-	mov		r6, r0
-	lsr		r6, #8
-	and		r7, r6, #1
+	mov		r3, r0				// создание копии значений из r0 в r3
+	lsr		r3, #8				// сдвиг вправо на 8 бит для получения тек значения clk
+	and		r5, r3, #1			// запись в r5 текущего значения clk
 
-	cmp		r7, #0
+	cmp		r5, #0				//
 	ite		eq
-
-	moveq		r2, #1			//code_right = 1
-	movne		r2, #2			//code_left = 2
+	moveq		r7, #1			//code_right = 1
+	movne		r7, #2			//code_left = 2
 
 	bx lr
 
 
 dt_low_to_high:
 
-	mov		r6, r0
-	lsr		r6, #8
-	and		r7, r6, #1
+	mov		r3, r0
+	lsr		r3, #8
+	and		r5, r3, #1
 
-	cmp		r7, #0
+	cmp		r5, #0
 	ite		eq
-	moveq		r2, #2
-	movne		r2, #1
+	moveq		r7, #2
+	movne		r7, #1
 
 	bx lr
+*/
 
-
-
-delay:									@ Подпрограмма задержки
-	push	{r0}						@ Загружаем в стек R0, т.к. его значение будем менять
-	ldr		r0, =0xFFFFF					@ псевдоинструкция Thumb (загрузить константу в регистр)
-delay_loop:
-	subs	r0, #1						@ SUB с установкой флагов результата
-	it 		NE
-	bne		delay_loop					@ переход, если Z==0 (результат вычитания не равен нулю)
-	pop		{r0}						@ Выгружаем из стека R0
-	bx		lr							@ выход из подпрограммы (переход к адресу в регистре LR - вершина стека)
 
 
   .size Reset_Handler, .-Reset_Handler
