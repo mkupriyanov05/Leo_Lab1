@@ -223,29 +223,63 @@ dt_changed:
 
 turn_right:
 
+	cmp		r8, #0						// проверка на возможность насыщения (включенности точки)
+	it		eq							// условие если "r8 = 0"
+	beq		if_saturated_turn_right		// то выполнить подпрогр if_saturated
+
+	b		turn_right_adder
+
+if_saturated_turn_right:
+
+	cmp		r10, #1				// проверка на насыщение (точка вкл)
+	itt		eq					// условие если "r10 = 1" (точка вкл)
+	moveq	r10, #0				// то "r10 = 0" (точку выкл)
+	beq		dt_changed_exiter	// то перейти к подпрогр dt_changed_exiter
+
+	b		turn_right_adder
+
+turn_right_adder:
+
 	cmp		r8, #9				// проверка числа для энкодера на переполнение
 	itte	lo					// условие если "r8 < 9"
 	addlo	r8, r8, #1			// то: "добавить к числу 1"
 	movlo	r10, #0				// то: "выставить в 0 регистр включения точки - точка будет выключена"
 	movhs	r10, #1				// иначе: "выставить в 1 регистр включения точки - точка будет включена"
 
-	lsl		r10, r10, #7		// сдвиг значения точки в 7 бит - бит точки в ODR регистре
-
-	bx lr
+	b		dt_changed_exiter	// перейти к подпрогр dt_changed_exiter
 
 
 turn_left:
 
+	cmp		r8, #9						// проверка на возможность насыщения (включенности точки)
+	it		eq							// условие если "r8 = 9"
+	beq		if_saturated_turn_left		// то выполнить подпрогр if_saturated
+
+if_saturated_turn_left:
+
+	cmp		r10, #1				// проверка на насыщение (точка вкл)
+	itt		eq					// условие если "r10 = 1" (точка вкл)
+	moveq	r10, #0				// то "r10 = 0" (точку выкл)
+	beq		dt_changed_exiter	// то перейти к подпрогр dt_changed_exiter
+
+	b		turn_left_adder
+
+turn_left_adder:
+
 	cmp		r8, #0				// проверка числа для энкодера на пустоту
-	itte	hi					// условие если "r8 > 9"
+	itte	hi					// условие если "r8 > 0"
 	subhi	r8, r8, #1			// то: "вычесть 1"
 	movhi	r10, #0				// то: "выставить в 0 регистр включения точки - точка будет выключена"
 	movls	r10, #1				// иначе: "выставить в 1 регистр включения точки - точка будет включена"
 
-	lsl		r10, r10, #7	// сдвиг значения точки в 7 бит - бит точки в ODR регистре
+	b		dt_changed_exiter	// перейти к подпрогр dt_changed_exiter
+
+
+dt_changed_exiter:
+
+	lsl		r10, r10, #7		// сдвиг значения точки в 7 бит - бит точки в ODR регистре
 
 	bx lr
-
 
 
   .size Reset_Handler, .-Reset_Handler
